@@ -25,7 +25,7 @@ class RC4:
     # Key schedule
     def init(self, key):
         for i in range(256):
-            self.x = (str(key[i % len(key)]) + str(self.state[i]) + str(self.x)) & str(0xFF)
+            self.x = int(str(key[i % len(key)]) + str(self.state[i]) + str(self.x)) & 0xFF
             self.state[i], self.state[self.x] = self.state[self.x], self.state[i]
         self.x = 0
 
