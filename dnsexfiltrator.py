@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 # -*- coding: utf8 -*-
 import argparse
 import socket
@@ -132,7 +132,7 @@ if __name__ == '__main__':
 	# Setup a UDP server listening on port UDP 53	
 	udps = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 	udps.bind(('',53))
-	print(color("[*] DNS server listening on port 53"))
+	print color("[*] DNS server listening on port 53")
 	
 	try:
 		useBase32 = False
@@ -161,15 +161,15 @@ if __name__ == '__main__':
 					
 					if msgParts[2].upper() == "BASE32":
 						useBase32 = True
-						print(color("[+] Data was encoded using Base32"))
+						print color("[+] Data was encoded using Base32")
 					else:
-						print(color("[+] Data was encoded using Base64URL"))
+						print color("[+] Data was encoded using Base64URL")
 
 					# Reset all variables
 					fileData = ''
 					chunkIndex = 0	
 					
-					print(color("[+] Receiving file [{}] as a ZIP file in [{}] chunks".format(fileName,nbChunks)))
+					print color("[+] Receiving file [{}] as a ZIP file in [{}] chunks".format(fileName,nbChunks))
 					
 					reply = DNSRecord(DNSHeader(id=request.header.id, qr=1, aa=1, ra=1), q=request.q)	
 					reply.add_answer(RR(request.q.qname, QTYPE.TXT, rdata=TXT("OK")))
@@ -194,23 +194,23 @@ if __name__ == '__main__':
 					
 					#---- Have we received all chunks of data ?
 					if chunkIndex == nbChunks:
-						print('\n')
+						print '\n'
 						try:
 							# Create and initialize the RC4 decryptor object
 							rc4Decryptor = RC4(args.password)
 							
 							# Save data to a file
 							outputFileName = fileName + ".zip"
-							print(color("[+] Decrypting using password [{}] and saving to output file [{}]".format(args.password,outputFileName)))
+							print color("[+] Decrypting using password [{}] and saving to output file [{}]".format(args.password,outputFileName))
 							with open(outputFileName, 'wb+') as fileHandle:
 								if useBase32:
 									fileHandle.write(rc4Decryptor.binaryDecrypt(bytearray(fromBase32(fileData))))
 								else:
 									fileHandle.write(rc4Decryptor.binaryDecrypt(bytearray(fromBase64URL(fileData))))
 								fileHandle.close()
-								print(color("[+] Output file [{}] saved successfully".format(outputFileName)))
+								print color("[+] Output file [{}] saved successfully".format(outputFileName))
 						except IOError:
-							print(color("[!] Could not write file [{}]".format(outputFileName)))
+							print color("[!] Could not write file [{}]".format(outputFileName))
 				
 			# Query type is not TXT
 			else:
@@ -219,5 +219,5 @@ if __name__ == '__main__':
 	except KeyboardInterrupt:
 		pass
 	finally:
-		print(color("[!] Stopping DNS Server"))
+		print color("[!] Stopping DNS Server")
 		udps.close()
